@@ -22,25 +22,32 @@ def auth():
             token.write(creds.to_json())
     return creds
 
-def list_files(folder_name):
+def list_files(id):
     creds = auth()
 
     service = build('drive', 'v3', credentials=creds)
 
-    # We want to specify the folder to search through
-    query = f"{folder_name}"
+    # Look inside a specific folder and
+    query = f"'{id}' in parents and (mimeType = 'application/vnd.google-apps.document' or mimeType = 'application/vnd.google-apps.folder')"
 
     # Call the API to get the items
-    results = service.files().list(pageSize=100).execute()
+    results = service.files().list(q=query, fields="files(id, name, mimeType)").execute()
     items = results.get('files', [])
 
     # If there is nothing, say so
     if not items:
-        print("There are no files.")
+
+        # print("There are no files.")
+        i = 0
+
     else:
-        print("Files:")
+        # print("Files:")
         for file in items:
-            print(f"{file['name']}")
+            # If a file is actually a folder, search through that folder
+            if file['mimeType'] == 'application/vnd.google-apps.folder':
+                list_files(file['id'])
+            if file['mimeType'] != 'application/vnd.google-apps.folder':
+                print(f"{file['name']}")
 
 
 def get_folder_id(folder_name):
@@ -63,6 +70,7 @@ def get_folder_id(folder_name):
 target_folder = 'Okarthel'
 
 # Search for that folder and get the id
-get_folder_id(target_folder)
+target_id = get_folder_id(target_folder)
 
-# list_files(target_folder)
+# List the files in that target id
+list_files(target_id)
