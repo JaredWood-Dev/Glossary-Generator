@@ -4,6 +4,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import os.path
 
+
 def auth():
     creds = None
 
@@ -22,6 +23,7 @@ def auth():
             token.write(creds.to_json())
     return creds
 
+
 def list_files(id):
     creds = auth()
 
@@ -34,6 +36,9 @@ def list_files(id):
     results = service.files().list(q=query, fields="files(id, name, mimeType)").execute()
     items = results.get('files', [])
 
+    # Create a list of all files
+    file_list = []
+
     # If there is nothing, say so
     if not items:
 
@@ -45,9 +50,12 @@ def list_files(id):
         for file in items:
             # If a file is actually a folder, search through that folder
             if file['mimeType'] == 'application/vnd.google-apps.folder':
-                list_files(file['id'])
+                file_list += list_files(file['id'])
             if file['mimeType'] != 'application/vnd.google-apps.folder':
-                print(f"{file['name']}")
+                file_list.append(file)
+                print(f"Added {file['name']} to list!")
+
+    return file_list
 
 
 def get_folder_id(folder_name):
@@ -67,10 +75,19 @@ def get_folder_id(folder_name):
 
 
 # Specify a folder by name
-target_folder = 'Okarthel'
+target_folder = 'Youtube'
 
 # Search for that folder and get the id
 target_id = get_folder_id(target_folder)
 
 # List the files in that target id
-list_files(target_id)
+master_list = list_files(target_id)
+
+# Sort the list
+master_list.sort(key=lambda x: x['name'])
+
+# Print the master list
+for file in master_list:
+    print(f"{file['name']}")
+
+
