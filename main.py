@@ -98,7 +98,7 @@ def create_doc():
     return file.get('id')
 
 
-def write_entry(id):
+def write_entry(id, text, header_no):
     creds = auth()
     docs_service = build('docs', 'v1', credentials=creds)
 
@@ -108,7 +108,19 @@ def write_entry(id):
                 'location': {
                     'index': 1,
                 },
-                'text': 'Hello World!'
+                'text': text + '\n'
+            }
+        },
+        {
+            'updateParagraphStyle': {
+                'range': {
+                    'startIndex': 1,
+                    'endIndex': len(text)
+                },
+                'paragraphStyle': {
+                    'namedStyleType': f'HEADING_{header_no}'
+                },
+                'fields': 'namedStyleType'
             }
         }
     ]
@@ -122,7 +134,7 @@ def write_entry(id):
 
 
 # Specify a folder by name
-target_folder = 'Youtube'
+target_folder = 'Okarthel'
 
 # Search for that folder and get the id
 target_id = get_folder_id(target_folder)
@@ -131,7 +143,7 @@ target_id = get_folder_id(target_folder)
 master_list = list_files(target_id)
 
 # Sort the list
-master_list.sort(key=lambda x: x['name'])
+master_list.sort(key=lambda x: x['name'], reverse=True)
 
 # Print the master list
 for file in master_list:
@@ -141,4 +153,6 @@ for file in master_list:
 glossary = create_doc()
 
 # Next, write to the document
-write_entry(glossary)
+for file in master_list:
+    write_entry(glossary, file['name'], 2)
+write_entry(glossary, "Okarthel Lore Glossary", 1)
