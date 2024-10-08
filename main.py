@@ -97,9 +97,28 @@ def create_doc():
 
     return file.get('id')
 
-def write_entry():
 
+def write_entry(id):
+    creds = auth()
+    docs_service = build('docs', 'v1', credentials=creds)
 
+    requests = [
+        {
+            'insertText': {
+                'location': {
+                    'index': 1,
+                },
+                'text': 'Hello World!'
+            }
+        }
+    ]
+
+    result = docs_service.documents().batchUpdate(
+        documentId=id,
+        body={'requests': requests}
+    ).execute()
+
+    print("File written!")
 
 
 # Specify a folder by name
@@ -119,7 +138,7 @@ for file in master_list:
     print(f"{file['name']}")
 
 # Create the output Google Document
-create_doc()
+glossary = create_doc()
 
 # Next, write to the document
-
+write_entry(glossary)
