@@ -3,6 +3,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+import google.generativeai as genai
+import os
 import os.path
 
 
@@ -80,7 +82,6 @@ def get_folder_id(folder_name):
         return folder['id']
 
 
-
 def create_doc():
     creds = auth()
     service = build('drive', 'v3', credentials=creds)
@@ -102,28 +103,53 @@ def write_entry(id, text, header_no):
     creds = auth()
     docs_service = build('docs', 'v1', credentials=creds)
 
-    requests = [
-        {
-            'insertText': {
-                'location': {
-                    'index': 1,
+    if header_no == -1:
+        requests = [
+            {
+                'insertText': {
+                    'location': {
+                        'index': 1,
+                    },
+                    'text': text + '\n'
                 },
-                'text': text + '\n'
+            },
+            {
+                'updateParagraphStyle': {
+                    'range': {
+                        'startIndex': 1,
+                        'endIndex': len(text)
+                    },
+                    'paragraphStyle': {
+                        'namedStyleType': 'NORMAL_TEXT'
+                    },
+                    'fields': 'namedStyleType'
+                }
             }
-        },
-        {
-            'updateParagraphStyle': {
-                'range': {
-                    'startIndex': 1,
-                    'endIndex': len(text)
+        ]
+    else:
+        requests = [
+            {
+                'insertText': {
+                    'location': {
+                        'index': 1,
+                    },
+                    'text': text + '\n'
                 },
-                'paragraphStyle': {
-                    'namedStyleType': f'HEADING_{header_no}'
-                },
-                'fields': 'namedStyleType'
+            },
+            {
+                'updateParagraphStyle': {
+                    'range': {
+                        'startIndex': 1,
+                        'endIndex': len(text)
+                    },
+                    'paragraphStyle': {
+                        'namedStyleType': f'HEADING_{header_no}'
+                    },
+                    'fields': 'namedStyleType'
+                }
             }
-        }
-    ]
+        ]
+
 
     result = docs_service.documents().batchUpdate(
         documentId=id,
@@ -132,6 +158,29 @@ def write_entry(id, text, header_no):
 
     print("File written!")
 
+
+def generate_desc(file):
+    creds = auth()
+    docs_service = build('docs', 'v1', credentials=creds)
+
+    document = docs_service.documents().get(documentId=file).execute()
+
+    doc_content = document.get('body').get('content')
+
+    # This is the text of the given file, next we want to give this to an ai to write a description of it.
+    doc_text = ''.join([element['paragraph']['elements'][0]['textRun']['content']
+                        for element in doc_content
+                        if 'paragraph' in element and 'elements' in element['paragraph']
+                        and 'textRun' in element['paragraph']['elements'][0]])
+
+    # print(doc_text)
+    # AI Model
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
+    # Response
+    response = model.generate_content("I need you so summarize the following text, but with the following notes; output only the summary, try to keep the summary 5 sentences, if the summary is of a geographic location(like a town, government, or thing) list its location, if the summary is of a magic item list its rarity and what type it is." + doc_text)
+
+    return response.text
 
 # Specify a folder by name
 target_folder = 'Okarthel'
@@ -154,5 +203,6 @@ glossary = create_doc()
 
 # Next, write to the document
 for file in master_list:
+    write_entry(glossary, generate_desc(file['id']), -1)
     write_entry(glossary, file['name'], 2)
 write_entry(glossary, "Okarthel Lore Glossary", 1)
