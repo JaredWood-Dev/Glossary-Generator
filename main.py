@@ -22,10 +22,13 @@ def auth():
             token.write(creds.to_json())
     return creds
 
-def list_files():
+def list_files(folder_name):
     creds = auth()
 
     service = build('drive', 'v3', credentials=creds)
+
+    # We want to specify the folder to search through
+    query = f"{folder_name}"
 
     # Call the API to get the items
     results = service.files().list(pageSize=100).execute()
@@ -39,4 +42,27 @@ def list_files():
         for file in items:
             print(f"{file['name']}")
 
-list_files()
+
+def get_folder_id(folder_name):
+    creds = auth()
+    service = build('drive', 'v3', credentials=creds)
+
+    query = f"name= '{folder_name}' and mimeType = 'application/vnd.google-apps.folder'"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    items = results.get('files', [])
+
+    if not items:
+        print(f"Unable to find {folder_name}.")
+    else:
+        folder = items[0]
+        print(f"Found folder: {folder['name']}, id: {folder['id']}")
+        return folder['id']
+
+
+# Specify a folder by name
+target_folder = 'Okarthel'
+
+# Search for that folder and get the id
+get_folder_id(target_folder)
+
+# list_files(target_folder)
