@@ -2,21 +2,27 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 import os.path
 
 
 def auth():
     creds = None
 
+    SCOPES = [
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/documents"
+    ]
+
     # Checks our "token", this basically stores if the user has already logged in to use the script
     if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json')
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     # Otherwise, we need to log in
-    if not creds or creds.valid:
+    if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json')
+            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the token
         with open('token.json', 'w') as token:
@@ -74,6 +80,28 @@ def get_folder_id(folder_name):
         return folder['id']
 
 
+
+def create_doc():
+    creds = auth()
+    service = build('drive', 'v3', credentials=creds)
+
+    # Make a new doc
+    file_metadata = {
+        'name': 'Lore Glossary',
+        'mimeType': 'application/vnd.google-apps.document'
+    }
+
+    file = service.files().create(body=file_metadata, fields='id').execute()
+
+    print(f"Created file with ID: {file.get('id')}")
+
+    return file.get('id')
+
+def write_entry():
+
+
+
+
 # Specify a folder by name
 target_folder = 'Youtube'
 
@@ -90,4 +118,8 @@ master_list.sort(key=lambda x: x['name'])
 for file in master_list:
     print(f"{file['name']}")
 
+# Create the output Google Document
+create_doc()
+
+# Next, write to the document
 
