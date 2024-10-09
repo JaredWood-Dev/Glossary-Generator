@@ -3,7 +3,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from google.api_core.exceptions import ResourceExhausted
 import google.generativeai as genai
+from googleapiclient.errors import HttpError
+import time
 import os
 import os.path
 
@@ -158,6 +161,8 @@ def write_entry(id, text, header_no):
 
     print("File written!")
 
+    return True
+
 
 def generate_desc(file):
     creds = auth()
@@ -182,6 +187,27 @@ def generate_desc(file):
 
     return response.text
 
+
+# This function will try the provided function, and exponentially back-off if needed
+def try_back_off(function, *args, retries=10, initial_delay=1, backoff_factor=2):
+    delay = initial_delay
+    for attempt in range(retries):
+        try:
+            return function(*args)
+        except ResourceExhausted as e:
+            print(f"Quota Exceeded: '{e}' Trying Again in '{delay}'...")
+            time.sleep(delay)
+            delay *= backoff_factor
+        except HttpError as e:
+            if e.resp.status in [500, 503]:
+                print(f"Server Error: '{e}' Trying Again in '{delay}'...")
+                time.sleep(delay)
+                delay *= backoff_factor
+            else:
+                raise
+    raise Exception("Service still unavailable!")
+
+
 # Specify a folder by name
 target_folder = 'Okarthel'
 
@@ -203,6 +229,14 @@ glossary = create_doc()
 
 # Next, write to the document
 for file in master_list:
-    write_entry(glossary, generate_desc(file['id']), -1)
-    write_entry(glossary, file['name'], 2)
+    desc = try_back_off(generate_desc, file['id'])
+    # desc = generate_desc(file['id'])
+    try_back_off(write_entry, glossary, desc, -1)
+    # write_entry(glossary, generate_desc(file['id']), -1)
+    try_back_off(write_entry, glossary, file['name'], 2)
+    # write_entry(glossary, file['name'], 2)
 write_entry(glossary, "Okarthel Lore Glossary", 1)
+
+# TODO: THROTTLE READ/WRITE ACCESS
+# TODO: THROTTLE AI ACCSESS
+# TODO: RETRY CONNECTION ERRORS
