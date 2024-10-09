@@ -182,8 +182,10 @@ def generate_desc(file):
     # AI Model
     model = genai.GenerativeModel("gemini-1.5-flash")
 
+    prompt = "I need you so summarize the following text, but with the following notes; output only the summary, try to keep the summary at most 5 sentences, but it can be less. if the summary is of a geographic location(like a town, government, or thing) list its location, if the summary is of a magic item list its rarity and what type it is. This generation is within the context of a Dungeons and Dragons 5e    game." + doc_text
+
     # Response
-    response = model.generate_content("I need you so summarize the following text, but with the following notes; output only the summary, try to keep the summary 5 sentences, if the summary is of a geographic location(like a town, government, or thing) list its location, if the summary is of a magic item list its rarity and what type it is." + doc_text)
+    response = model.generate_content(prompt)
 
     return response.text
 
@@ -205,6 +207,8 @@ def try_back_off(function, *args, retries=10, initial_delay=1, backoff_factor=2)
                 delay *= backoff_factor
             else:
                 raise
+        except ValueError as e:
+            print(f"Value Error: '{e} 'The AI thinks the prompt is harmful!")
     raise Exception("Service still unavailable!")
 
 
@@ -229,6 +233,7 @@ glossary = create_doc()
 
 # Next, write to the document
 for file in master_list:
+    print(f"Generating description for {file['name']}")
     desc = try_back_off(generate_desc, file['id'])
     # desc = generate_desc(file['id'])
     try_back_off(write_entry, glossary, desc, -1)
