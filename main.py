@@ -1,3 +1,4 @@
+import requests.exceptions
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -35,7 +36,7 @@ def auth():
     return creds
 
 
-def list_files(id):
+def list_files(id, file_type):
     creds = auth()
 
     service = build('drive', 'v3', credentials=creds)
@@ -61,8 +62,10 @@ def list_files(id):
         for file in items:
             # If a file is actually a folder, search through that folder
             if file['mimeType'] == 'application/vnd.google-apps.folder':
-                file_list += list_files(file['id'])
+                file_list += list_files(file['id'], file['name'])
             if file['mimeType'] != 'application/vnd.google-apps.folder':
+                if file_type != " ":
+                    file['name'] += f" [{file_type}]"
                 file_list.append(file)
                 print(f"Added {file['name']} to list!")
 
@@ -187,7 +190,7 @@ def generate_desc(file):
     # Response
     response = model.generate_content(prompt)
 
-    return response.text
+    return "\t" + response.text
 
 
 # This function will try the provided function, and exponentially back-off if needed
@@ -208,9 +211,14 @@ def try_back_off(function, *args, retries=10, initial_delay=1, backoff_factor=2)
             else:
                 raise
         except ValueError as e:
-            print(f"Value Error: '{e} 'The AI thinks the prompt is harmful!")
+            print(f"Value Error: '{e}'\n The AI thinks the prompt is harmful!")
+        except requests.exceptions.Timeout as e:
+            print(f"Error: '{e}', Trying Again...")
     raise Exception("Service still unavailable!")
 
+
+# Get the starting time
+start_time = time.time()
 
 # Specify a folder by name
 target_folder = 'Okarthel'
@@ -219,14 +227,20 @@ target_folder = 'Okarthel'
 target_id = get_folder_id(target_folder)
 
 # List the files in that target id
-master_list = list_files(target_id)
+master_list = list_files(target_id, " ")
+
+
+# Time after getting all files
+list_time = time.time()
 
 # Sort the list
 master_list.sort(key=lambda x: x['name'], reverse=True)
 
+total_files = 0
 # Print the master list
 for file in master_list:
     print(f"{file['name']}")
+    total_files += 1
 
 # Create the output Google Document
 glossary = create_doc()
@@ -235,13 +249,19 @@ glossary = create_doc()
 for file in master_list:
     print(f"Generating description for {file['name']}")
     desc = try_back_off(generate_desc, file['id'])
-    # desc = generate_desc(file['id'])
+
     try_back_off(write_entry, glossary, desc, -1)
-    # write_entry(glossary, generate_desc(file['id']), -1)
+
     try_back_off(write_entry, glossary, file['name'], 2)
-    # write_entry(glossary, file['name'], 2)
+
 write_entry(glossary, "Okarthel Lore Glossary", 1)
 
-# TODO: THROTTLE READ/WRITE ACCESS
-# TODO: THROTTLE AI ACCSESS
-# TODO: RETRY CONNECTION ERRORS
+# Time at the end
+final_time = time.time()
+
+list_time = round(list_time - start_time, 2)
+final_time = round(final_time - start_time, 2)
+
+print(f"Time after getting all files: {list_time} seconds.")
+print(f"Time after completion: {final_time} seconds.")
+print(f"Total files processed: {total_files}.")
