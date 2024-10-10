@@ -1,2 +1,3 @@
 # Glossary-Generator
-A program that generates a glossary based of a google drive folder.
+  A Glossary is an alphabetical list of terms about a specific subject or topic. I, when world building my fantasy world, desired a glossary of my world, but there are upwards of hundreds of entries. This would be impossible for me to derive a glossary, especially considering more entries will be added. In order to achieve my goal, I decided to program the Glossary Generator to generate the lore glossary!
+  This script generates a glossary from a given folder. The script recursively iterates through the folder and sub folders, uses Google AI to generate a desciption based on the file's contents and generates an output file containing the glossary.
