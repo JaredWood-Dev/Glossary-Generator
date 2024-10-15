@@ -62,11 +62,13 @@ def list_files(id, file_type):
         for file in items:
             # If a file is actually a folder, search through that folder
             if file['mimeType'] == 'application/vnd.google-apps.folder':
-                file_list += list_files(file['id'], file['name'])
+                if file['name'] not in blacklisted_folders:
+                    file_list += list_files(file['id'], file['name'])
             if file['mimeType'] != 'application/vnd.google-apps.folder':
                 if file_type != " ":
                     file['name'] += f" [{file_type}]"
-                file_list.append(file)
+                if file['name'] not in blacklisted_files:
+                    file_list.append(file)
                 print(f"Added {file['name']} to list!")
 
     return file_list
@@ -226,9 +228,15 @@ target_folder = 'Okarthel'
 # Search for that folder and get the id
 target_id = get_folder_id(target_folder)
 
+# Blacklist Folders
+blacklisted_folders = ["Adventures", "History (Legacy)", "Countries and Governments", "Settlements"]
+
+# Blacklist Files
+# This blacklists files by name; including multiple files with the same name.
+blacklisted_files = ["Dinoborn", "Planets, Moons, and Stars", "Spells"]
+
 # List the files in that target id
 master_list = list_files(target_id, " ")
-
 
 # Time after getting all files
 list_time = time.time()
